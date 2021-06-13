@@ -82,7 +82,7 @@ class CA_Assistant
   }
   public function get_shipping_zone($province_from_code, $province_to_code)
   {
-    return array(
+    $zone_table =  array(
       'Buenos Aires' => array(
         'Buenos Aires' => 2, 'Catamarca' => 3, 'Chaco' => 3, 'Chubut' => 4, 'Córdoba' => 2, 'Corrientes' => 3, 'Entre Ríos' => 2, 'Formosa' => 3, 'Jujuy' => 4,
         'La Pampa' => 2, 'La Rioja' => 3, 'Mendoza' => 3, 'Misiones' => 3, 'Neuquén' => 3, 'Río Negro' => 3, 'Salta' => 4, 'San Juan' => 3, 'San Luis' => 3, 'Santa Cruz' => 4, 'Santa Fe' => 2, 'Sgo. del Estero' => 3,
@@ -237,6 +237,68 @@ class CA_Assistant
         'La Pampa' => 3, 'La Rioja' => 2, 'Mendoza' => 3, 'Misiones' => 3, 'Neuquén' => 4, 'Río Negro' => 4, 'Salta' => 2, 'San Juan' => 3, 'San Luis' => 3, 'Santa Cruz' => 4, 'Santa Fe' => 3, 'Sgo. del Estero' => 2,
         'Tierra del Fuego' => 4, 'Tucumán' => 2
       )
-    )[$this -> get_province_name($province_from_code)][$this -> get_province_name($province_to_code)];
+    );
+    return $zone_table[$this->get_province_name($province_from_code)][$this->get_province_name($province_to_code)];
+  }
+  public function calculate_weight()
+  {
+
+    $weight = wc_get_weight(WC()->cart->get_cart_contents_weight(), 'kg');
+
+    if ($weight <= 0.5) {
+      return 0.5;
+    }
+    if ($weight <= 1) {
+      return 1;
+    }
+
+    if ($weight <= 2) {
+      return 2;
+    }
+    if ($weight <= 3) {
+      return 3;
+    }
+
+    if ($weight <= 5) {
+      return 5;
+    }
+    if ($weight <= 10) {
+      return 10;
+    }
+    if ($weight <= 15) {
+      return 15;
+    }
+    if ($weight <= 20) {
+      return 20;
+    }
+
+    if ($weight <= 25) {
+      return 25;
+    }
+  }
+
+  public function get_prices_for_domicilio($zone_number, $weight)
+  {
+    $price_table  = array(
+      1 => array(
+        0.5 => 343.97, 1 => 405.14, 2 => 407.47, 3 => 409.75, 5 => 414.40, 10 => 456.38, 15 => 590.55,
+        20 => 611.10, 25 => 648.97
+      ),
+      2 => array(
+        0.5 => 375.54, 1 => 438.26, 2 => 451.13, 3 => 476.72, 5 => 456.09, 10 => 639.34, 15 => 865.71,
+        20 => 1028.94, 25 => 1221.65
+      ),
+      3 => array(
+        0.5 => 376.33, 1 => 439.86, 2 => 454.35, 3 => 495.23, 5 => 583.32, 10 => 705.90, 15 => 900.3,
+        20 => 1144.42, 25 => 1368.39
+      ),
+      4 => array(
+        0.5 => 378.03, 1 => 443.29, 2 => 480.39, 3 => 528.39, 5 => 643.55, 10 => 822.31, 15 => 1107.03,
+        20 => 1409.25, 25 => 1703.57
+      ),
+
+
+    );
+    return $price_table[$zone_number][$weight];
   }
 }
