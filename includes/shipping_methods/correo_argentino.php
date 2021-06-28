@@ -3,17 +3,19 @@ if (!defined('ABSPATH')) {
     exit; // Exit if accessed directly
 }
 
-include_once plugin_dir_path(__FILE__) . '/../../woocommerce/woocommerce.php';
-include_once 'shipping_methods/ca_assistant.php';
+include_once plugin_dir_path(__FILE__) . '/../ca_assistant.php';
+
 
     class CorreoArgentinoShipping extends WC_Shipping_Method
     {
         public $ca_assistant;
+        public $ca_api;
 
         public function __construct()
         {
             parent::__construct();
             $this->ca_assistant = new CA_Assistant();   
+        
         }
 
         public function init()
@@ -41,12 +43,6 @@ include_once 'shipping_methods/ca_assistant.php';
         ];
     }
 
-        public function get_zone_number($package = array())
-        {
-            $province_from = WC()->countries->get_base_state();
-            $province_to = $package['destination']['state'];
-            return $this->ca_assistant->get_shipping_zone($province_from, $province_to);
-        }
 
         
     }
