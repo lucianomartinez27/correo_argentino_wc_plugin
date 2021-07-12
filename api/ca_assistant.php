@@ -372,7 +372,7 @@ class CA_Assistant
 
 }
 
-if (!empty($_POST) and isset($_POST['province_from']) and isset($_POST['province_to'])){
+if (isset($_POST['province_from']) and isset($_POST['province_to'])){
 
 $ca_assistant = new CA_Assistant;
 $zone_number = $ca_assistant -> get_shipping_zone($_POST['province_from'], $_POST['province_to']);

@@ -54,7 +54,7 @@ if (in_array('woocommerce/woocommerce.php',  $active_plugins)) {
 
 
     //* Add location and branch select field to the checkout page
- 
+
     function select_branches()
     {
         woocommerce_form_field(
@@ -69,7 +69,7 @@ if (in_array('woocommerce/woocommerce.php',  $active_plugins)) {
                 )
             ),
 
-            
+
         );
         woocommerce_form_field(
             'branches',
@@ -83,9 +83,8 @@ if (in_array('woocommerce/woocommerce.php',  $active_plugins)) {
                 )
             ),
 
-            
-        );
 
+        );
     }
     add_action('woocommerce_review_order_before_payment', 'select_branches', 16);
 
@@ -115,7 +114,8 @@ if (in_array('woocommerce/woocommerce.php',  $active_plugins)) {
 
         if (!(empty($_POST['branches']) || $_POST['branches'] == '0')) {
 
-            update_post_meta($order_id, 'kelder_sucursal_correo_argentino', $_POST['branches']);
+            update_post_meta($order_id, 'kelder_sucursal_correo_argentino_branch', $_POST['branches']);
+            update_post_meta($order_id, 'kelder_sucursal_correo_argentino_location_branch', $_POST['location_branches']);
         }
     }
 
@@ -131,15 +131,17 @@ if (in_array('woocommerce/woocommerce.php',  $active_plugins)) {
         }
     }
 
-    
+
     add_action('woocommerce_admin_order_data_after_shipping_address', 'edit_woocommerce_checkout_page_ca_kelder', 10, 1);
     function edit_woocommerce_checkout_page_ca_kelder($order)
     {
         global $post_id;
         if (get_post_meta($post_id, 'kelder_domicilio_correo_argentino', true)) {
             echo '<p><strong>' . __('Domicilio Correo Argentino') . ':</strong>' . get_post_meta($post_id, 'kelder_domicilio_correo_argentino', true) . '</p>';
-        } elseif (get_post_meta($post_id, 'kelder_sucursal_correo_argentino', true)) {
-            echo '<p><strong>' . __('Sucursal Correo Argentino') . ':  <br> CODIGO NIS:</strong> ' . get_post_meta($post_id, 'kelder_sucursal_correo_argentino', true) . '</p>';
+        } elseif (get_post_meta($post_id, 'kelder_sucursal_correo_argentino_branch', true) & get_post_meta($post_id, 'kelder_sucursal_correo_argentino_location_branch', true)) {
+            echo '<p><strong>' . __('Sucursal Correo Argentino') . '</strong></p>' .
+            get_post_meta($post_id, 'kelder_sucursal_correo_argentino_location_branch', true) .
+            ' ('. get_post_meta($post_id, 'kelder_sucursal_correo_argentino_branch', true) . ')';
         }
     }
 }
