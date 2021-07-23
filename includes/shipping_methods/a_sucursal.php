@@ -1,6 +1,5 @@
 <?php
 include_once plugin_dir_path(__FILE__) . 'correo_argentino.php';
-include_once plugin_dir_path(__FILE__) . '/includes/correo_argentino.php';
 
 
 if (!defined('ABSPATH')) {
