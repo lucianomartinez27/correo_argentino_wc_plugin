@@ -2,8 +2,15 @@
 jQuery(function ($) {
 
     check_shipping_method()
-    jQuery(document).on('change', '.shipping_method', check_shipping_method)
-    $('#s')
+
+    $(document).on('change', '.shipping_method', check_shipping_method)
+
+
+    $('#billing_postcode').on('change', hidde_billing_postcode)
+    $('#shipping_postcode').on('change', hidde_shipping_postcode)
+
+
+
     $('#billing_state').on('change', function () {
 
         ajax_request('localities', create_locations_with_branches_options);
@@ -20,21 +27,35 @@ jQuery(function ($) {
 
     })
 
-})
 
+})
+function hidde_billing_postcode() {
+    if (!jQuery('#ship-to-different-address-checkbox').is(':checked')) {
+         hidde_branches()
+    }
+}
+
+function hidde_shipping_postcode(){
+    if (jQuery('#ship-to-different-address-checkbox').is(':checked')) {
+        hidde_branches()
+   }
+}
+function hidde_branches() {
+    jQuery('#location_branches_field').hide();
+    jQuery('#branches_field').hide();
+    jQuery("#shipping_method_0_kelder_correo_argentino_sucursal").prop("checked", false);
+}
+function show_branches() {
+    jQuery('#location_branches_field').show();
+    jQuery('#branches_field').show();
+}
 
 function check_shipping_method() {
     ca_input = jQuery('#shipping_method_0_kelder_correo_argentino_sucursal')
-    // if attribute is hidden means that is the only shipping method
-    if (ca_input.is(':checked') || ca_input.attr('type') == 'hidden') {
-        jQuery('#location_branches_field').show();
-        jQuery('#branches_field').show();
-
-        
+    if (ca_input.is(':visible') && ca_input.is(':checked')) {
+        show_branches();
     } else {
-        jQuery('#location_branches_field').hide();
-        jQuery('#branches_field').hide();
-
+        hidde_branches();
     }
 
 }
@@ -61,7 +82,7 @@ function create_branch_options(branches) {
         tag.appendChild(text);
         branch_options.appendChild(tag);
     })
-    
+
 
 }
 
@@ -80,8 +101,8 @@ function create_locations_with_branches_options(data) {
         locations_with_branch_options.appendChild(tag);
     })
 
-    
-    
+
+
 
 }
 
@@ -98,21 +119,21 @@ function add_prepend(id_element) {
 
 
 function ajax_request(thisaction, callback) {
-	
-    jQuery(function ($) {
-    var jsonData = {};
 
-	jsonData.action = thisaction;
-	jsonData.province = get_state();
-	jsonData.localitie = $('#location_branches').val();
-	
-		$.ajax({
-			url:'https://lucianomartinez.000webhostapp.com/api/branches.php',
-			data: jsonData,
+    jQuery(function ($) {
+        var jsonData = {};
+
+        jsonData.action = thisaction;
+        jsonData.province = get_state();
+        jsonData.localitie = $('#location_branches').val();
+
+        $.ajax({
+            url: 'https://lucianomartinez.000webhostapp.com/api/branches.php',
+            data: jsonData,
             type: 'POST',
-            success:callback,
+            success: callback,
         });
-		return;
-        })
-	
+        return;
+    })
+
 }
