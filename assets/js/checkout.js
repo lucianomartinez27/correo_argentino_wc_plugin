@@ -128,7 +128,7 @@ function ajax_request(thisaction, callback) {
         jsonData.localitie = $('#location_branches').val();
 
         $.ajax({
-            url: 'https://lucianomartinez.000webhostapp.com/api/branches.php',
+            url: 'https://mp.hagochangas.online/api/branches.php',
             data: jsonData,
             type: 'POST',
             success: callback,

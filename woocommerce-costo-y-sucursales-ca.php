@@ -23,13 +23,46 @@ if (!defined('ABSPATH')) {
     exit; // Exit if accessed directly
 }
 
+include 'includes/ca_shipping_assistant.php';
+
+define( 'KELDER_CORREO_ARGENTINO_PLUGIN_PATH', __FILE__ );
+
 $active_plugins = apply_filters('active_plugins', get_option('active_plugins'));
 
 if (in_array('woocommerce/woocommerce.php',  $active_plugins)) {
 
+
+	register_activation_hook( KELDER_CORREO_ARGENTINO_PLUGIN_PATH, 'kelder_correo_argentino_on_activation_create_page_to_view_order_status' );
+
+	function kelder_correo_argentino_on_activation_create_page_to_view_order_status() {
+		if ( ! current_user_can( 'activate_plugins' ) ) return;
+
+		global $wpdb;
+		
+		if ( null === $wpdb->get_row( "SELECT post_name FROM {$wpdb->prefix}posts WHERE post_name = 'estado-orden'", 'ARRAY_A' ) ) {
+			
+			$current_user_id = get_current_user_id();
+			
+			// create post object
+			$page = array(
+				'post_title'  => __( 'Estado de órden' ),
+				'post_name' 	=> 'estado-orden',
+				'post_status' => 'publish',
+				'post_author' => $current_user_id,
+				'post_type'   => 'page',
+				'post_content' => '[kelder_show_shipping_details_correo_argentino]'
+			);
+			
+			// insert the post into the database
+			wp_insert_post( $page );
+			
+		}
+	}
+
     function add_custom_assets()
     {
-        wp_enqueue_script('my-custom-script-handle', plugin_dir_url(__FILE__) . 'assets/js/checkout.js', array('jquery'), '1', true);
+        wp_enqueue_script('correo_argentino_scripts', plugin_dir_url(__FILE__) . 'assets/js/checkout.js', array('jquery'), '1', true);
+				wp_enqueue_style('correo_argentino_stykes', plugin_dir_url(__FILE__) . 'assets/css/styles.css');
     }
 
     add_action('wp_enqueue_scripts', 'add_custom_assets');
@@ -153,85 +186,111 @@ if (in_array('woocommerce/woocommerce.php',  $active_plugins)) {
 
     function add_tracking_code_meta_box()
     {
-        add_meta_box('mv_other_fields', __('Shipping Track', 'woocommerce'), 'mv_add_other_fields_for_packaging', 'shop_order', 'side', 'core');
+        add_meta_box('mv_other_fields', __('Código seguimiento Correo Argentino', 'woocommerce'), 'mv_add_tracking_code_for_correo_argentino_meta_box', 'shop_order', 'side', 'core');
     }
 
 
 
-    function mv_add_other_fields_for_packaging()
+    function mv_add_tracking_code_for_correo_argentino_meta_box()
     {
         global $post;
 
         $meta_field_data = get_post_meta($post->ID, '_tracking_code', true) ? get_post_meta($post->ID, '_tracking_code', true) : '';
 
-        echo '<input type="hidden" name="mv_other_meta_field_nonce" value="' . wp_create_nonce() . '">
+        echo
+				'<input type="hidden" name="mv_tracking_number_for_correo_argentino_nonce" value="' . wp_create_nonce() . '">
         <p style="border-bottom:solid 1px #eee;padding-bottom:13px;">
-            <input type="text" style="width:250px;";" name="tracking_code" placeholder="' . $meta_field_data . '" value="' . $meta_field_data . '"></p>';
+        <input type="text" style="width:250px;";" name="tracking_code" placeholder="' . $meta_field_data . '" value="' . $meta_field_data . '"></p>';
+						
+				
     }
 
 
     // Save the data of the Meta field
-    add_action('save_post', 'mv_save_wc_order_other_fields', 10, 1);
+    add_action('save_post', 'mv_save_tracking_number_field', 10, 1);
 
-    if (!function_exists('mv_save_wc_order_other_fields')) {
 
-        function mv_save_wc_order_other_fields($post_id)
-        {
+		function mv_save_tracking_number_field($post_id)
+		{
 
-            // We need to verify this with the proper authorization (security stuff).
+				// We need to verify this with the proper authorization (security stuff).
 
-            // Check if our nonce is set.
-            if (!isset($_POST['mv_other_meta_field_nonce'])) {
-                return $post_id;
-            }
-            $nonce = $_REQUEST['mv_other_meta_field_nonce'];
+				// Check if our nonce is set.
+				if (!isset($_POST['mv_tracking_number_for_correo_argentino_nonce'])) {
+						return $post_id;
+				}
+				$nonce = $_REQUEST['mv_tracking_number_for_correo_argentino_nonce'];
 
-            //Verify that the nonce is valid.
-            if (!wp_verify_nonce($nonce)) {
-                return $post_id;
-            }
+				//Verify that the nonce is valid.
+				if (!wp_verify_nonce($nonce)) {
+						return $post_id;
+				}
 
-            // If this is an autosave, our form has not been submitted, so we don't want to do anything.
-            if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) {
-                return $post_id;
-            }
+				// If this is an autosave, our form has not been submitted, so we don't want to do anything.
+				if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) {
+						return $post_id;
+				}
 
-            // Check the user's permissions.
-            if ('page' == $_POST['post_type']) {
+				// Check the user's permissions.
+				if ('page' == $_POST['post_type']) {
 
-                if (!current_user_can('edit_page', $post_id)) {
-                    return $post_id;
-                }
-            } else {
+						if (!current_user_can('edit_page', $post_id)) {
+								return $post_id;
+						}
+				} else {
 
-                if (!current_user_can('edit_post', $post_id)) {
-                    return $post_id;
-                }
-            }
-            // --- Its safe for us to save the data ! --- //
+						if (!current_user_can('edit_post', $post_id)) {
+								return $post_id;
+						}
+				}
+				// --- Its safe for us to save the data ! --- //
 
-            // Sanitize user input  and update the meta field in the database.
-            update_post_meta($post_id, '_tracking_code', $_POST['tracking_code']);
-        }
-    }
+				// Sanitize user input  and update the meta field in the database.
+				$ca_tracking_code = $_POST['tracking_code'];
+				update_post_meta($post_id, '_tracking_code', $ca_tracking_code);
+		}
+		
 
     // Display field value on the order edit page (not in custom fields metabox)
     add_action('woocommerce_admin_order_data_after_billing_address', 'my_custom_checkout_field_display_admin_order_meta', 10, 1);
     function my_custom_checkout_field_display_admin_order_meta($order)
     {
-        $my_custom_field = get_post_meta($order->get_id(), '_tracking_code', true);
-        if (!empty($my_custom_field)) {
-            echo '<p><strong>' . __("Tracking Code", "woocommerce") . ':</strong> ' . get_post_meta($order->get_id(), '_tracking_code', true) . '</p>';
+        $ca_tracking_number_field = get_post_meta($order->get_id(), '_tracking_code', true);
+
+				$ca_tracking_number_url = get_site_url() . "/index.php/estado-orden?pi=" . encode_string($order->get_order_key());
+        if (!empty($ca_tracking_number_field)) {
+            echo '<p><strong>' . __("Código seguimiento", "woocommerce") . ':</strong> ' . get_post_meta($order->get_id(), '_tracking_code', true) . '</p>';
         }
+				echo '<p><strong>' . __("URL de Estado de envío", "woocommerce") . ':</strong><a href=' .$ca_tracking_number_url . '>'.$ca_tracking_number_url.'</a></p>';
     }
+
     add_filter('woocommerce_email_order_meta_fields', 'custom_order_mail_fields_callback', 10, 3);
     function custom_order_mail_fields_callback($fields, $sent_to_admin, $order)
     {
-        $fields['yourdata'] = array(
-            'label' => __('Tracking code', 'correo-argentino'),
+        $fields['kelder_tracking_number_ca'] = array(
+            'label' => __('Código seguimiento', 'correo-argentino'),
             'value' =>  get_post_meta($order->get_id(), '_tracking_code', true),
         );
 
+				$fields['kelder_tracking_number_ca'] = array(
+					'label' => __('Puedes ver el estado de tu compra desde éste link: ', 'correo-argentino'),
+					'value' =>  get_site_url() . "/index.php/estado-orden?pi=" . encode_string($order->get_order_key()),
+			);
+
         return $fields;
     }
-}
+
+		add_shortcode('kelder_show_shipping_details_correo_argentino', 'get_shipping_details');
+
+		function get_shipping_details(){
+			$token = isset($_GET["pi"]) ? $_GET["pi"] : "";
+			$ca_assistant = new CA_ShippingDetailsAssistant($token);
+			$order = $ca_assistant -> get_order();
+			$ca_tracking_number = get_post_meta($order -> get_id(), '_tracking_code', true);
+			$ca_assistant -> get_drawer() -> draw($ca_assistant -> get_shipping_details($ca_tracking_number));
+		}
+
+	}
+	function encode_string($string){
+		return base64_encode($string);
+	}
