@@ -23,7 +23,7 @@ if (!defined('ABSPATH')) {
     exit; // Exit if accessed directly
 }
 
-include 'includes/ca_assistant.php';
+include 'includes/ca_shipping_assistant.php';
 
 define( 'KELDER_CORREO_ARGENTINO_PLUGIN_PATH', __FILE__ );
 
@@ -281,142 +281,16 @@ if (in_array('woocommerce/woocommerce.php',  $active_plugins)) {
     }
 
 		add_shortcode('kelder_show_shipping_details_correo_argentino', 'get_shipping_details');
+
 		function get_shipping_details(){
 			$token = isset($_GET["pi"]) ? $_GET["pi"] : "";
-			$order_key = decode_string($token);
-			$order_id = wc_get_order_id_by_order_key($order_key);
-			if ($order_id){
-				$ca_tracking_number = get_post_meta($order_id, '_tracking_code', true);
-				$order = wc_get_order($order_id);				
-				$ca_shipping_details = get_ca_shipping_details($order, $ca_tracking_number);
-				echo "<div id='order-and-shipping-details' class='shipping-details'>";
-				draw_order_details($order);	
-				draw_shipping_details($ca_shipping_details);
-				echo "</div>";
-			} else {
-				echo "No se encontró el pedido. Si tienes alguna duda, ponte en contacto con nosotros.";
-			}
+			$ca_assistant = new CA_ShippingDetailsAssistant($token);
+			$order = $ca_assistant -> get_order();
+			$ca_tracking_number = get_post_meta($order -> get_id(), '_tracking_code', true);
+			$ca_assistant -> get_drawer() -> draw($ca_assistant -> get_shipping_details($ca_tracking_number));
 		}
 
 	}
-
-function get_ca_shipping_details($order, $ca_tracking_number){
-	$ca_assistant = new CA_Assistant();
-	$ca_shipping_details = array();
-
-	$shipping_methods = $order->get_shipping_methods();
-	$shipping_method = @array_shift($shipping_methods);
-	$shipping_method_id = $shipping_method['method_id'];	
-	$ca_shipping_details["shipping-type"] = $order->get_shipping_method();
-	$ca_shipping_details["shipping-method"] = $shipping_method_id;
-	$ca_shipping_events = $ca_assistant -> get_ca_shipping_events($ca_tracking_number);
-	$ca_shipping_details["events"] = $ca_shipping_events;
-
-	return $ca_shipping_details;
-
-}
-
-function draw_shipping_details($ca_shipping_details) {
-	$shippingEvents = '
-	<div class="shipping-details">
-	<h2>Detalles del envío</h2>
-	<p> <strong>Tipo de envío:</strong> $(tipo-envio)</p>
-	$(events-table)
-	</div>';
-	
-	$shippingEvents = str_replace("$(tipo-envio)", $ca_shipping_details["shipping-type"], $shippingEvents);
-
-	$is_shipped_by_correo_argentino =
-	 	$ca_shipping_details["shipping-method"] == "kelder_correo_argentino_domicilio" ||
-		$ca_shipping_details["shipping-method"] == "kelder_correo_argentino_sucursal";
-
-	if ($is_shipped_by_correo_argentino){
-
-		$eventsTable = '
-		<table class="table-responsive">
-			<thead>
-				<tr>
-					<th class="detail-centered" colspan="4">Datos de Correo Argentino</th>
-				</tr>
-				<tr>
-					<th>Fecha</th>
-					<th>Planta</th>
-					<th>Estado</th>
-					<th>Descripción</th>
-				</tr>
-			</thead>
-			<tbody>
-			$(shipping-events)
-			</tbody>
-		</table>';
-		
-		$eventsRows = '';
-		if (count($ca_shipping_details["events"]) > 0){
-				foreach ($ca_shipping_details["events"] as $event) {
-					$eventRow = '<tr>';
-					$eventRow .= '<td data-title= "Fecha:">' . $event -> fechaEvento . '</td>';
-					$eventRow .= '<td  data-title= "Planta:">' . $event -> planta . '</td>';
-					$eventRow .= '<td  data-title= "Evento:">' . $event -> codigoEvento . '</td>';
-					$eventRow .= '<td  data-title= "Estado:">' . ($event -> estadoEntrega == "0" ? '-' : $event -> estadoEntrega) . '</td>';
-					$eventRow .= '</tr>';
-					$eventsRows .= $eventRow;
-				}
-
-			} else {
-			$eventsRows = 
-			'<tr>
-				<td data-title="Info: " colspan="4">Aún no tenemos los datos de envío, por favor regresa más tarde.</td>
-			</tr>';
-		}
-		$eventsTable = str_replace("$(shipping-events)", $eventsRows, $eventsTable);
-		$shippingEvents = str_replace("$(events-table)", $eventsTable, $shippingEvents);
-	} else {
-		$shippingEvents = str_replace("$(events-table)", "", $shippingEvents);
-	}
-	
-	echo $shippingEvents;
-	}
-
-	function draw_order_details($order){
-		$orderDetailsTable = '
-		<div class="order-details">
-		 <table class="table-responsive">
-			<thead>
-				<tr>
-					<th class="detail-centered" colspan="4">Datos del pedido</th>
-				</tr>
-				<tr>
-					<th>Evento</th>
-					<th>Situación</th>
-				</tr>
-			</thead>
-			<tbody>
-				($order-events)
-			</tbody>
-		</table>
-		</div>';
-		$details_body = '';
-		$details_body .= event_detail("Pedido", "Realizado el " . $order -> get_date_created() -> format('d-m-Y H:i'));
-		$details_body .= event_detail("Pago",  ($order -> get_date_paid() ? "Realizado el " . $order -> get_date_paid() -> format('d-m-Y H:i') : "Por confirmar"));
-		$details_body .= event_detail("Estado órden", wc_get_order_statuses()['wc-' . $order -> get_status()] . ($order -> get_date_modified() ? " el " . $order -> get_date_modified() -> format('d-m-Y H:i') : ""));
-		$details_body .= '';
-		echo str_replace('($order-events)', $details_body, $orderDetailsTable);
-	
-	}
-
-
-	function event_detail($title, $date){
-		return '<tr><td data-title="Evento: ">'. $title . '</td><td data-title="Situación:">' . $date .'</td></tr>';
-	}
-
-
-
-
-
-
 	function encode_string($string){
 		return base64_encode($string);
-	}
-	function decode_string($string){
-		return base64_decode($string);
 	}
