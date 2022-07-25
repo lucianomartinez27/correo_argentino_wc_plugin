@@ -9,7 +9,6 @@ include_once plugin_dir_path(__FILE__) . '/../ca_assistant.php';
     class CorreoArgentinoShipping extends WC_Shipping_Method
     {
         public $ca_assistant;
-        public $ca_api;
 
         public function __construct()
         {
