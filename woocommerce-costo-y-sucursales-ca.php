@@ -32,8 +32,6 @@ $active_plugins = apply_filters('active_plugins', get_option('active_plugins'));
 if (in_array('woocommerce/woocommerce.php',  $active_plugins)) {
 
 
-	register_activation_hook( KELDER_CORREO_ARGENTINO_PLUGIN_PATH, 'kelder_correo_argentino_on_activation_create_page_to_view_order_status' );
-
 	function kelder_correo_argentino_on_activation_create_page_to_view_order_status() {
 		if ( ! current_user_can( 'activate_plugins' ) ) return;
 
@@ -58,6 +56,8 @@ if (in_array('woocommerce/woocommerce.php',  $active_plugins)) {
 			
 		}
 	}
+
+		register_activation_hook( KELDER_CORREO_ARGENTINO_PLUGIN_PATH, 'kelder_correo_argentino_on_activation_create_page_to_view_order_status' );
 
     function add_custom_assets()
     {
@@ -121,30 +121,29 @@ if (in_array('woocommerce/woocommerce.php',  $active_plugins)) {
     }
     add_action('woocommerce_review_order_before_payment', 'select_branches', 16);
 
+
     /**
      * Check if branches are selected
      */
 
-    add_action('woocommerce_checkout_process', 'checkout_field_ca_process_kelder');
     function checkout_field_ca_process_kelder()
     {
-        global $woocommerce, $wp_session;
+        global $wp_session;
 
         $chosen_methods = WC()->session->get('chosen_shipping_methods');
         $chosen_shipping = $chosen_methods[0];
         $wp_session['chosen_shipping'] = $chosen_shipping;
         if (strpos($chosen_shipping, 'kelder_correo_argentino_sucursal') !== false) {
-            if (empty($_POST['branches']) || $_POST['branches'] == '0')
+            if (empty($_POST['branches']) || $_POST['branches'] == '0'){
                 wc_add_notice(__('Por favor, seleccionar sucursal de retiro.'), 'error');
+							}
         }
     }
+    add_action('woocommerce_checkout_process', 'checkout_field_ca_process_kelder');
 
 
-    add_action('woocommerce_checkout_update_order_meta', 'order_sucursal_main_update_order_meta_ca_kelder', 10);
     function order_sucursal_main_update_order_meta_ca_kelder($order_id)
     {
-        global $wp_session;
-
         if (!(empty($_POST['branches']) || $_POST['branches'] == '0')) {
 
             update_post_meta($order_id, 'kelder_sucursal_correo_argentino_branch', $_POST['branches']);
@@ -152,20 +151,18 @@ if (in_array('woocommerce/woocommerce.php',  $active_plugins)) {
         }
     }
 
+    add_action('woocommerce_checkout_update_order_meta', 'order_sucursal_main_update_order_meta_ca_kelder', 10);
 
 
-    add_action('woocommerce_checkout_update_order_meta', 'order_domicilio_main_update_order_meta_ca_kelder', 10);
     function order_domicilio_main_update_order_meta_ca_kelder($order_id)
     {
-        global $wp_session;
-
         if ($_POST['shipping_method'][0] == 'domicilio_correo_argentino') {
             update_post_meta($order_id, 'kelder_domicilio_correo_argentino', 'Enviar a domicilio');
         }
     }
+    add_action('woocommerce_checkout_update_order_meta', 'order_domicilio_main_update_order_meta_ca_kelder', 10);
 
 
-    add_action('woocommerce_admin_order_data_after_shipping_address', 'edit_woocommerce_checkout_page_ca_kelder', 10, 1);
     function edit_woocommerce_checkout_page_ca_kelder($order)
     {
         global $post_id;
@@ -178,36 +175,31 @@ if (in_array('woocommerce/woocommerce.php',  $active_plugins)) {
         }
     }
 
-
-
-
-    // Adding Meta container admin shop_order pages
-    add_action('add_meta_boxes', 'add_tracking_code_meta_box');
-
-    function add_tracking_code_meta_box()
-    {
-        add_meta_box('mv_other_fields', __('Código seguimiento Correo Argentino', 'woocommerce'), 'mv_add_tracking_code_for_correo_argentino_meta_box', 'shop_order', 'side', 'core');
-    }
-
+    add_action('woocommerce_admin_order_data_after_shipping_address', 'edit_woocommerce_checkout_page_ca_kelder', 10, 1);
 
 
     function mv_add_tracking_code_for_correo_argentino_meta_box()
     {
         global $post;
 
-        $meta_field_data = get_post_meta($post->ID, '_tracking_code', true) ? get_post_meta($post->ID, '_tracking_code', true) : '';
+        $meta_field_tracking_data = get_post_meta($post->ID, '_tracking_code', true) ? get_post_meta($post->ID, '_tracking_code', true) : '';
+				$meta_field_tracking_prefix_data = get_post_meta($post->ID, '_tracking_code_prefix', true) ? get_post_meta($post->ID, '_tracking_code_prefix', true) : '';
 
         echo
 				'<input type="hidden" name="mv_tracking_number_for_correo_argentino_nonce" value="' . wp_create_nonce() . '">
-        <p style="border-bottom:solid 1px #eee;padding-bottom:13px;">
-        <input type="text" style="width:250px;";" name="tracking_code" placeholder="' . $meta_field_data . '" value="' . $meta_field_data . '"></p>';
+				<label for="tracking_code_prefix" style="font-weight:bold;">' . __('Prefijo') . '</label>
+				<input type="text" style="width:75px;";" name="tracking_code_prefix" placeholder="Prefijo" value="' . $meta_field_tracking_prefix_data . '">
+				<label for="tracking_code" style="font-weight:bold;">' . __('Número') . '</label>
+        <input type="text" style="width:250px;";" name="tracking_code" placeholder="Número de segumiento" value="' . $meta_field_tracking_data . '">';
 						
-				
     }
+		// Adding Meta container admin shop_order pages
 
-
-    // Save the data of the Meta field
-    add_action('save_post', 'mv_save_tracking_number_field', 10, 1);
+		function add_tracking_code_meta_box()
+		{
+				add_meta_box('mv_other_fields', __('Código seguimiento Correo Argentino', 'woocommerce'), 'mv_add_tracking_code_for_correo_argentino_meta_box', 'shop_order', 'side', 'core');
+		}
+		add_action('add_meta_boxes', 'add_tracking_code_meta_box');
 
 
 		function mv_save_tracking_number_field($post_id)
@@ -247,29 +239,35 @@ if (in_array('woocommerce/woocommerce.php',  $active_plugins)) {
 
 				// Sanitize user input  and update the meta field in the database.
 				$ca_tracking_code = $_POST['tracking_code'];
+				$ca_tracking_code_prefix = $_POST['tracking_code_prefix'];
 				update_post_meta($post_id, '_tracking_code', $ca_tracking_code);
+				update_post_meta($post_id, '_tracking_code_prefix', $ca_tracking_code_prefix);
 		}
-		
+		add_action('save_post', 'mv_save_tracking_number_field', 10, 1);
 
-    // Display field value on the order edit page (not in custom fields metabox)
-    add_action('woocommerce_admin_order_data_after_billing_address', 'my_custom_checkout_field_display_admin_order_meta', 10, 1);
+
     function my_custom_checkout_field_display_admin_order_meta($order)
     {
         $ca_tracking_number_field = get_post_meta($order->get_id(), '_tracking_code', true);
 
 				$ca_tracking_number_url = get_site_url() . "/index.php/estado-orden?pi=" . encode_string($order->get_order_key());
         if (!empty($ca_tracking_number_field)) {
-            echo '<p><strong>' . __("Código seguimiento", "woocommerce") . ':</strong> ' . get_post_meta($order->get_id(), '_tracking_code', true) . '</p>';
+            echo '<p><strong>' . __("Código seguimiento", "woocommerce") . ':</strong> ' . 
+						get_post_meta($order->get_id(), '_tracking_code_prefix', true) . " " .
+						get_post_meta($order->get_id(), '_tracking_code', true) .
+						
+						 '</p>';
         }
 				echo '<p><strong>' . __("URL de Estado de envío", "woocommerce") . ':</strong><a href=' .$ca_tracking_number_url . '>'.$ca_tracking_number_url.'</a></p>';
     }
+    // Display field value on the order edit page (not in custom fields metabox)
+    add_action('woocommerce_admin_order_data_after_billing_address', 'my_custom_checkout_field_display_admin_order_meta', 10, 1);
 
-    add_filter('woocommerce_email_order_meta_fields', 'custom_order_mail_fields_callback', 10, 3);
     function custom_order_mail_fields_callback($fields, $sent_to_admin, $order)
     {
         $fields['kelder_tracking_number_ca'] = array(
             'label' => __('Código seguimiento', 'correo-argentino'),
-            'value' =>  get_post_meta($order->get_id(), '_tracking_code', true),
+            'value' =>  get_post_meta($order->get_id(), '_tracking_code_prefix', true) . " " . get_post_meta($order->get_id(), '_tracking_code', true),
         );
 
 				$fields['kelder_tracking_number_ca'] = array(
@@ -279,18 +277,18 @@ if (in_array('woocommerce/woocommerce.php',  $active_plugins)) {
 
         return $fields;
     }
+    add_filter('woocommerce_email_order_meta_fields', 'custom_order_mail_fields_callback', 10, 3);
 
-		add_shortcode('kelder_show_shipping_details_correo_argentino', 'get_shipping_details');
 
 		function get_shipping_details(){
 			$token = isset($_GET["pi"]) ? $_GET["pi"] : "";
 			$ca_assistant = new CA_ShippingDetailsAssistant($token);
-			$order = $ca_assistant -> get_order();
-			$ca_tracking_number = get_post_meta($order -> get_id(), '_tracking_code', true);
-			$ca_assistant -> get_drawer() -> draw($ca_assistant -> get_shipping_details($ca_tracking_number));
+			$ca_assistant -> draw_details();
 		}
+		add_shortcode('kelder_show_shipping_details_correo_argentino', 'get_shipping_details');
 
 	}
+	
 	function encode_string($string){
 		return base64_encode($string);
 	}

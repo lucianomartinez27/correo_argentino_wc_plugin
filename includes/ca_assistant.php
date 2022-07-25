@@ -2,7 +2,7 @@
 
 class CA_Assistant
 {
-  private $_url = 'https://lucianomartinez.000webhostapp.com/api/ca_assistant.php';
+  private $_url = 'https://mp.hagochangas.online/api/ca_assistant.php';
 
 
   public function get_prices_for_domicilio($package)

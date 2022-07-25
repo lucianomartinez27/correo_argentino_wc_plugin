@@ -6,12 +6,16 @@ class CA_ShippingDetailsAssistant {
 	{
 		$this -> order = $this -> get_order_for_token($token);
 		$this -> drawer = new CA_ShippingDetailsDrawer($this -> order);
+		$ca_tracking_number = get_post_meta($this -> order -> get_id(), '_tracking_code', true);
+		$ca_tracking_number_prefix = get_post_meta($this -> order -> get_id(), '_tracking_code_prefix', true);
+		$this -> tracking_number = $ca_tracking_number;
+		$this -> tracking_number_prefix = $ca_tracking_number_prefix;
 	}
 
-	private $_ca_url = 'https://api.correoargentino.com.ar/backendappcorreo/api/api/shipping-tracking-nac?product_code=CP&id_shipping=$(ca_tracking_number)&destination=Nac';
+	private $_ca_url = 'https://api.correoargentino.com.ar/backendappcorreo/api/api/shipping-tracking-nac?product_code=$(ca_tracking_number_prefix)&id_shipping=$(ca_tracking_number)&destination=Nac';
 	
-	public function get_ca_shipping_events($ca_tracking_number){
-		$url = $this -> get_url($ca_tracking_number);
+	public function get_ca_shipping_events(){
+		$url = $this -> get_url();
 		$shipping_details_json = wp_remote_retrieve_body(wp_remote_get($url));
 		$ca_shipping_detail = json_decode($shipping_details_json);
 		if ($ca_shipping_detail -> rta == "OK"){
@@ -22,8 +26,10 @@ class CA_ShippingDetailsAssistant {
 		return $ca_shipping_events;
 	}
 
-	private function get_url($ca_tracking_number){
-		return str_replace('$(ca_tracking_number)', $ca_tracking_number, $this->_ca_url);
+	private function get_url(){
+		$url = str_replace('$(ca_tracking_number)', $this -> tracking_number, $this->_ca_url);
+		$url = str_replace('$(ca_tracking_number_prefix)', $this -> tracking_number_prefix, $url);
+		return $url;
 	}
 
 	public function get_order_for_token($token){
@@ -47,20 +53,31 @@ class CA_ShippingDetailsAssistant {
 		return $this -> order;
 	}
 
-	public function get_drawer(){
-		return $this -> drawer;
-	}
-
-	public function get_shipping_details($ca_tracking_number){
+	public function get_shipping_details(){
 		$ca_shipping_details = array();
 		$shipping_methods = $this -> order->get_shipping_methods();
 		$shipping_method = @array_shift($shipping_methods);
 		$shipping_method_id = $shipping_method['method_id'];	
 		$ca_shipping_details["shipping-type"] = $this -> order->get_shipping_method();
 		$ca_shipping_details["shipping-method"] = $shipping_method_id;
-		$ca_shipping_events = $this -> get_ca_shipping_events($ca_tracking_number);
+		$ca_shipping_events = $this -> get_ca_shipping_events();
 		$ca_shipping_details["events"] = $ca_shipping_events;
 		return $ca_shipping_details;
+	}
+
+	public function draw_details(){
+		$this -> drawer -> draw($this);
+	}
+
+	public function get_events(){
+		return $this -> get_shipping_details()["events"];
+	}
+
+	public function get_shipping_type(){
+		return $this -> get_shipping_details()["shipping-type"];
+	}
+	public function get_shipping_method(){
+		return $this -> get_shipping_details()["shipping-method"];
 	}
 }
 
@@ -80,11 +97,10 @@ class CA_ShippingDetailsDrawer {
 		$(events-table)
 		</div>';
 		
-		$shippingEvents = str_replace("$(tipo-envio)", $ca_shipping_details["shipping-type"], $shippingEvents);
-	
+		$shippingEvents = str_replace("$(tipo-envio)", $ca_shipping_details -> get_shipping_type(), $shippingEvents);
 		$is_shipped_by_correo_argentino =
-			 $ca_shipping_details["shipping-method"] == "kelder_correo_argentino_domicilio" ||
-			$ca_shipping_details["shipping-method"] == "kelder_correo_argentino_sucursal";
+			 $ca_shipping_details -> get_shipping_method() == "kelder_correo_argentino_domicilio" ||
+			$ca_shipping_details-> get_shipping_method() == "kelder_correo_argentino_sucursal";
 	
 		if ($is_shipped_by_correo_argentino){
 	
@@ -94,12 +110,7 @@ class CA_ShippingDetailsDrawer {
 					<tr>
 						<th class="detail-centered" colspan="4">Datos de Correo Argentino</th>
 					</tr>
-					<tr>
-						<th>Fecha</th>
-						<th>Planta</th>
-						<th>Estado</th>
-						<th>Descripción</th>
-					</tr>
+					$(events-table-header)
 				</thead>
 				<tbody>
 				$(shipping-events)
@@ -107,8 +118,16 @@ class CA_ShippingDetailsDrawer {
 			</table>';
 			
 			$eventsRows = '';
-			if (count($ca_shipping_details["events"]) > 0){
-					foreach ($ca_shipping_details["events"] as $event) {
+			$events = $ca_shipping_details -> get_events();
+			if (count($events) > 0){
+				$eventsTableHeader = '<tr>
+				<th>Fecha</th>
+				<th>Planta</th>
+				<th>Estado</th>
+				<th>Descripción</th>
+			</tr>';
+
+					foreach ($events as $event) {
 						$eventRow = '<tr>';
 						$eventRow .= '<td data-title= "Fecha:">' . $event -> fechaEvento . '</td>';
 						$eventRow .= '<td  data-title= "Planta:">' . $event -> planta . '</td>';
@@ -119,12 +138,23 @@ class CA_ShippingDetailsDrawer {
 					}
 	
 				} else {
-				$eventsRows = 
-				'<tr>
-					<td data-title="Info: " colspan="4">Aún no tenemos los datos de envío, por favor regresa más tarde.</td>
-				</tr>';
+					$eventsTableHeader = '';
+				if (empty($ca_shipping_details -> tracking_number)){
+					$eventsRows = 
+					'<tr>
+						<td data-title="Info: " colspan="4">Aún no tenemos los datos de envío, por favor regresa más tarde.</td>
+					</tr>';
+				} else {
+					$eventsRows = 
+					'<tr>
+						<td data-title="Info: " colspan="2">Tu código de seguimiento es: <strong>' . $ca_shipping_details -> tracking_number_prefix . " " . $ca_shipping_details -> tracking_number . '</strong></td>
+						<td data-title="Info: " colspan="2">Puedes buscar su estado en <a href="https://www.correoargentino.com.ar/formularios/ondnc" _target="blank">la página de Correo Argentino</a></td>
+					</tr>';
+				}
+
 			}
 			$eventsTable = str_replace("$(shipping-events)", $eventsRows, $eventsTable);
+			$eventsTable = str_replace("$(events-table-header)", $eventsTableHeader, $eventsTable);
 			$shippingEvents = str_replace("$(events-table)", $eventsTable, $shippingEvents);
 		} else {
 			$shippingEvents = str_replace("$(events-table)", "", $shippingEvents);
@@ -154,7 +184,7 @@ class CA_ShippingDetailsDrawer {
 			$details_body = '';
 			$details_body .= $this -> event_detail("Pedido", "Realizado el " . $this -> order -> get_date_created() -> format('d-m-Y H:i'));
 			$details_body .= $this -> event_detail("Pago",  ($this -> order -> get_date_paid() ? "Realizado el " . $this -> order -> get_date_paid() -> format('d-m-Y H:i') : "Por confirmar"));
-			$details_body .= $this -> event_detail("Estado órden", wc_get_order_statuses()['wc-' . $this -> order -> get_status()] . ($this -> order -> get_date_modified() ? " el " . $this -> order -> get_date_modified() -> format('d-m-Y H:i') : ""));
+			$details_body .= $this -> event_detail("Estado órden", wc_get_order_statuses()['wc-' . $this -> order -> get_status()] . ($this -> order -> get_date_modified() ? " (Actualizado el " . $this -> order -> get_date_modified() -> format('d-m-Y H:i') . ")": ""));
 			$details_body .= '';
 			echo str_replace('($order-events)', $details_body, $orderDetailsTable);
 		
